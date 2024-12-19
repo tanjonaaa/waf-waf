@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Count and Fetch with AWS WAF Captcha</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin-top: 50px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            font-size: 1.2em;
+            margin: 5px 0;
+        }
+        #captchaContainer {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+    <script type="text/javascript" src="./config.js" defer></script>
+    <script type="text/javascript" src="https://09bd26e5e726.eu-west-3.captcha-sdk.awswaf.com/09bd26e5e726/jsapi.js" defer></script>
+</head>
+<body>
+    <div id="app">
+        <form id="countForm">
+            <label for="numberInput">Enter a number (1-1000):</label>
+            <input type="number" id="numberInput" min="1" max="1000" required>
+            <button type="submit">Submit</button>
+        </form>
+        <ul id="countList"></ul>
+        <div id="captchaContainer">
+            <p>Please complete the captcha to continue:</p>
+            <div id="captcha"></div>
+        </div>
+    </div>
+
+
+    <script>
+        let currentNumber = 1;
+        let count = 0;
+        let intervalId = null;
+        let captchaToken = null;
+
+        async function makeFetchCall() {
+            const listItem = document.createElement('li');
+            listItem.textContent = `Forbidden: ${currentNumber}`;
+            document.getElementById('countList').appendChild(listItem);
+
+            const headers = captchaToken ? { 'x-aws-waf-token': captchaToken } : {};
+
+            try {
+                const response = await fetch('https://api.prod.jcloudify.com/whoami', { headers });
+                if (response.status === 403) {
+                    console.log("Forbidden");
+                } else if (response.status === 405) {
+                    console.error("Method not allowed");
+                    clearInterval(intervalId);
+                    showCaptcha();
+                } else {
+                    console.log("Done");
+                }
+            } catch (error) {
+                console.error(error);
+            }
+
+            currentNumber++;
+
+            if (currentNumber > count) {
+                clearInterval(intervalId);
+            }
+        }
+
+        function startCounting() {
+            intervalId = setInterval(makeFetchCall, 1000);
+        }
+
+        function showCaptcha() {
+            document.getElementById('captchaContainer').style.display = 'block';
+            AwsWafCaptcha.renderCaptcha(
+                document.querySelector("#captcha"),
+                {
+                apiKey: window.WAF_API_KEY,
+                onSuccess: (token) => {
+                    captchaToken = token;
+                    document.getElementById('captchaContainer').style.display = 'none';
+                    startCounting();
+                },
+                onError: () => {
+                    alert('Captcha verification failed. Please try again.');
+                }
+            });
+        }
+
+        document.getElementById('countForm').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const numberInput = document.getElementById('numberInput');
+            count = parseInt(numberInput.value, 10);
+
+            if (isNaN(count) || count < 1 || count > 1000) {
+                alert('Please enter a valid number between 1 and 1000.');
+                return;
+            }
+
+            document.getElementById('countList').innerHTML = '';
+            currentNumber = 1;
+            captchaToken = null;
+            startCounting();
+        });
+    </script>
+</body>
+</html>
