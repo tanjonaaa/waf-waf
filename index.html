@@ -46,6 +46,7 @@
         let count = 0;
         let intervalId = null;
         let captchaToken = null;
+        let succeed = false;
 
         async function makeFetchCall() {
             const listItem = document.createElement('li');
@@ -58,7 +59,7 @@
                 const response = await fetch('https://api.prod.jcloudify.com/whoami', { headers });
                 if (response.status === 403) {
                     console.log("Forbidden");
-                } else if (response.status === 405) {
+                } else if (response.status === 405 && !succeed) {
                     console.error("Method not allowed");
                     clearInterval(intervalId);
                     showCaptcha();
@@ -91,7 +92,9 @@
                     startCounting();
                 },
                 onError: () => {
-                    alert('Captcha verification failed. Please try again.');
+                    document.getElementById('captchaContainer').style.display = 'none';
+                    succeed = true;
+                    startCounting();
                 }
             });
         }
