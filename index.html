@@ -67,12 +67,11 @@
                 }
             } catch (error) {
                 console.error(error);
-            }
-
-            currentNumber++;
-
-            if (currentNumber > count) {
-                clearInterval(intervalId);
+            } finally {
+                currentNumber++;
+                if (currentNumber > count) {
+                    clearInterval(intervalId);
+                }
             }
         }
 
